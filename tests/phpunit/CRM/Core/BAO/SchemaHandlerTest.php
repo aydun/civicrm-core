@@ -57,6 +57,25 @@ class CRM_Core_BAO_SchemaHandlerTest extends CiviUnitTestCase {
   }
 
   /**
+   * Test CRM_Core_BAO_SchemaHandler::getIndexes() function
+   */
+  public function testGetIndexes() {
+    $indexes = CRM_Core_BAO_SchemaHandler::getIndexes(array('civicrm_contact'));
+    $this->assertTrue(in_array('index_contact_type', $indexes['civicrm_contact']));
+  }
+
+  /**
+   * Test CRM_Core_BAO_SchemaHandler::getMissingIndexes() function
+   */
+  public function testGetMissingIndexes() {
+    $missing = CRM_Core_BAO_SchemaHandler::getMissingIndexes(array('civicrm_contact' => array('rabbit', 'contact_type')));
+    $fields = CRM_Utils_Array::collect('field', $missing['civicrm_contact']);
+    $this->assertEquals(1, count($fields));
+    $this->assertTrue(in_array('rabbit', $fields));
+    $this->assertFalse(in_array('contact_type', $fields));
+  }
+
+  /**
    * Test creating an index.
    *
    * We want to be sure it creates an index and exits gracefully if the index

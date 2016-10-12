@@ -428,9 +428,9 @@ ADD UNIQUE INDEX `unique_entity_id` ( `entity_id` )";
    * @todo add support for length & multilingual on combined keys.
    *
    * @param string $createIndexPrefix
-   * @param array $substrLenghts
+   * @param array $substrLengths
    */
-  public static function createIndexes($tables, $createIndexPrefix = 'index', $substrLenghts = array()) {
+  public static function createIndexes($tables, $createIndexPrefix = 'index', $substrLengths = array()) {
     $queries = array();
     $domain = new CRM_Core_DAO_Domain();
     $domain->find(TRUE);
@@ -442,46 +442,15 @@ ADD UNIQUE INDEX `unique_entity_id` ( `entity_id` )";
       $columns = CRM_Core_I18n_SchemaStructure::columns();
     }
 
-    foreach ($tables as $table => $fields) {
-      $query = "SHOW INDEX FROM $table";
-      $dao = CRM_Core_DAO::executeQuery($query);
+    $missing = CRM_Core_BAO_SchemaHandler::getMissingIndexes($tables, $createIndexPrefix, $substrLengths);
 
-      $currentIndexes = array();
-      while ($dao->fetch()) {
-        $currentIndexes[] = $dao->Key_name;
-      }
-
+    foreach ($missing as $table => $fields) {
       // now check for all fields if the index exists
-      foreach ($fields as $field) {
-        $fieldName = implode('_', (array) $field);
-
-        if (is_array($field)) {
-          // No support for these for combined indexes as yet - add a test when you
-          // want to add that.
-          $lengthName = '';
-          $lengthSize = '';
-        }
-        else {
-          // handle indices over substrings, CRM-6245
-          // $lengthName is appended to index name, $lengthSize is the field size modifier
-          $lengthName = isset($substrLenghts[$table][$fieldName]) ? "_{$substrLenghts[$table][$fieldName]}" : '';
-          $lengthSize = isset($substrLenghts[$table][$fieldName]) ? "({$substrLenghts[$table][$fieldName]})" : '';
-        }
-
-        $names = array(
-          "index_{$fieldName}{$lengthName}",
-          "FK_{$table}_{$fieldName}{$lengthName}",
-          "UI_{$fieldName}{$lengthName}",
-          "{$createIndexPrefix}_{$fieldName}{$lengthName}",
-        );
-
-        // skip to the next $field if one of the above $names exists; handle multilingual for CRM-4126
-        foreach ($names as $name) {
-          $regex = '/^' . preg_quote($name) . '(_[a-z][a-z]_[A-Z][A-Z])?$/';
-          if (preg_grep($regex, $currentIndexes)) {
-            continue 2;
-          }
-        }
+      foreach ($fields as $field_params) {
+        $lengthSize = $field_params['lengthSize'];
+        $lengthName = $field_params['lengthName'];
+        $field = $field_params['field'];
+        $fieldName = $field_params['fieldName'];
 
         // the index doesn't exist, so create it
         // if we're multilingual and the field is internationalised, do it for every locale
@@ -504,6 +473,82 @@ ADD UNIQUE INDEX `unique_entity_id` ( `entity_id` )";
     foreach ($queries as $query) {
       $dao->query($query, FALSE);
     }
+  }
+
+  /**
+   * Get list of indexes that don't exist
+   * @param array $tables
+   * @param string $createIndexPrefix
+   * @param array $substrLengths
+   * - see createIndexes() for details
+   * @return array tableNames with array of field, fieldName, lengthName, lengthSize  for missing indexes
+   */
+  public static function getMissingIndexes($tables, $createIndexPrefix = 'index', $substrLengths = array()) {
+    $existingIndexes = CRM_Core_BAO_SchemaHandler::getIndexes(array_keys($tables));
+    $missing = array();
+    foreach ($tables as $table => $fields) {
+      // now check for all fields if the index exists
+      foreach ($fields as $field) {
+        $fieldName = implode('_', (array) $field);
+
+        if (is_array($field)) {
+          // No support for these for combined indexes as yet - add a test when you
+          // want to add that.
+          $lengthName = '';
+          $lengthSize = '';
+        }
+        else {
+          // handle indices over substrings, CRM-6245
+          // $lengthName is appended to index name, $lengthSize is the field size modifier
+          $lengthName = isset($substrLengths[$table][$fieldName]) ? "_{$substrLengths[$table][$fieldName]}" : '';
+          $lengthSize = isset($substrLengths[$table][$fieldName]) ? "({$substrLengths[$table][$fieldName]})" : '';
+        }
+
+        $names = array(
+          "index_{$fieldName}{$lengthName}",
+          "FK_{$table}_{$fieldName}{$lengthName}",
+          "UI_{$fieldName}{$lengthName}",
+          "{$createIndexPrefix}_{$fieldName}{$lengthName}",
+        );
+
+        // skip to the next $field if one of the above $names exists; handle multilingual for CRM-4126
+        foreach ($names as $name) {
+          $regex = '/^' . preg_quote($name) . '(_[a-z][a-z]_[A-Z][A-Z])?$/';
+          if (preg_grep($regex, $existingIndexes[$table])) {
+            continue 2;
+          }
+        }
+        $missing[$table][] = array(
+          'field' => $field,
+          'fieldName' => $fieldName,
+          'lengthName' => $lengthName,
+          'lengthSize' => $lengthSize,
+        );
+      }
+    }
+    return $missing;
+  }
+
+  /**
+   * Get indexes for tables
+   * @param array $tables
+   *   array of table names to find indexes for
+   *
+   * @return array('tableName' => array('index1', 'index2'))
+   */
+  public static function getIndexes($tables) {
+    $indexes = array();
+    foreach ($tables as $table) {
+      $query = "SHOW INDEX FROM $table";
+      $dao = CRM_Core_DAO::executeQuery($query);
+
+      $tableIndexes = array();
+      while ($dao->fetch()) {
+        $tableIndexes[] = $dao->Key_name;
+      }
+      $indexes[$table] = $tableIndexes;
+    }
+    return $indexes;
   }
 
   /**
