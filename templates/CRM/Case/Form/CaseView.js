@@ -118,6 +118,9 @@
         if (data.contact_type) {
           params.api = {params: {contact_type: data.contact_type}};
         }
+        if (data.contact_sub_type) {
+          params.api.params.contact_sub_type = data.contact_sub_type;
+        }
         $('[name=edit_role_contact_id]', this).val('').crmEntityRef(params);
       },
       post: function(data) {
