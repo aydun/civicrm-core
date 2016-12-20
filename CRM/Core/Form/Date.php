@@ -147,6 +147,7 @@ class CRM_Core_Form_Date {
       unset($selector['this.fiscal_year']);
       unset($selector['previous.fiscal_year']);
     }
+    CRM_Utils_Hook::dateRangeSelector(get_class($form), $fieldName, $selector);
     return $selector;
   }
 

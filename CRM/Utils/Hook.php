@@ -2203,4 +2203,18 @@ abstract class CRM_Utils_Hook {
     );
   }
 
+  /**
+   * This hook is called when the date range selectors are retrieved from the db
+   *
+   * @param string $formName
+   * @param string $fieldName
+   * @param array $selector - array of selectors to modify
+   */
+  public static function dateRangeSelector($formName, $fieldName, &$selector) {
+    return self::singleton()->invoke(3, $formName, $fieldName, $selector,
+      self::$_nullObject, self::$_nullObject, self::$_nullObject,
+      'civicrm_dateRangeSelector'
+    );
+  }
+
 }
