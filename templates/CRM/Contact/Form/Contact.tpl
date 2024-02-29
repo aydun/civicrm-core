@@ -106,7 +106,7 @@
       }
       //open tab if form rule throws error
       if ( $(this).children().find('span.crm-error').text().length > 0 ) {
-        $(this).parents('.collapsed').crmAccordionToggle();
+        $(this).parents('details:not([open])').crmAccordionToggle();
       }
     });
     if (action === 2) {
