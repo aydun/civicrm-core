@@ -161,11 +161,11 @@
       if( $(this).attr('href') == '#expand') {
         var message = {/literal}"{ts escape='js'}Collapse all tabs{/ts}"{literal};
         $(this).attr('href', '#collapse');
-        $('.crm-accordion-wrapper.collapsed').crmAccordionToggle();
+        $('.crm-form-block details:not([open])').crmAccordionToggle();
       }
       else {
         var message = {/literal}"{ts escape='js'}Expand all tabs{/ts}"{literal};
-        $('.crm-accordion-wrapper:not(.collapsed)').crmAccordionToggle();
+        $('.crm-form-block details[open]').crmAccordionToggle();
         $(this).attr('href', '#expand');
       }
       $(this).html(message);
