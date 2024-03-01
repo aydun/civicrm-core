@@ -106,7 +106,7 @@
       }
       //open tab if form rule throws error
       if ( $(this).children().find('span.crm-error').text().length > 0 ) {
-        $(this).parents('details:not([open])').crmAccordionToggle();
+        $(this).parents('details:not([open])').prop('open', function(i, val) {return !val;});
       }
     });
     if (action === 2) {
@@ -161,11 +161,11 @@
       if( $(this).attr('href') == '#expand') {
         var message = {/literal}"{ts escape='js'}Collapse all tabs{/ts}"{literal};
         $(this).attr('href', '#collapse');
-        $('.crm-form-block details:not([open])').crmAccordionToggle();
+        $('.crm-form-block details:not([open])').prop('open', function(i, val) {return !val;});
       }
       else {
         var message = {/literal}"{ts escape='js'}Expand all tabs{/ts}"{literal};
-        $('.crm-form-block details[open]').crmAccordionToggle();
+        $('.crm-form-block details[open]').prop('open', function(i, val) {return !val;});
         $(this).attr('href', '#expand');
       }
       $(this).html(message);

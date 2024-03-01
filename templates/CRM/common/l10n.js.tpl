@@ -115,6 +115,7 @@
     if ($('#crm-notification-container').length) {
       $.each(validator.errorList, function(k, error) {
         $(error.element).parents('.crm-custom-accordion.collapsed').crmAccordionToggle();
+        $(error.element).parents('.crm-custom-accordion:not([open])').prop('open', function(i, val) {return !val;});
         $(error.element).crmError(error.message);
       });
     }

@@ -57,7 +57,7 @@
   function setDefaultGroup() {
     var invalidGroupName = {/literal}'{$invalidGroupName}'{literal};
     if (invalidGroupName) {
-       cj("#new-group.collapsed").crmAccordionToggle();
+       cj("#new-group:not([open])").prop('open', function(i, val) {return !val;});
     } else {
        cj("#newGroupName").val('');
        cj("#newGroupDesc").val('');

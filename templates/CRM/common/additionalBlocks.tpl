@@ -156,7 +156,7 @@ function clearFirstBlock( blockName , blockId ) {
     cj("#" + element +" input, " + "#" + element + " select").each(function () {
         cj(this).val('');
     });
-    cj("#addressBlockId:not(.collapsed)").crmAccordionToggle();
+    cj("#addressBlockId[open]").prop('open', function(i, val) {return !val;});
     cj("#addressBlockId .active").removeClass('active');
 }
 
