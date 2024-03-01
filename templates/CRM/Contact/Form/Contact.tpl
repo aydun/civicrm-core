@@ -106,7 +106,7 @@
       }
       //open tab if form rule throws error
       if ( $(this).children().find('span.crm-error').text().length > 0 ) {
-        $(this).parents('details:not([open])').prop('open', function(i, val) {return !val;});
+        $(this).parents('details').prop('open', true);
       }
     });
     if (action === 2) {
