@@ -165,7 +165,7 @@
       }
       else {
         var message = {/literal}"{ts escape='js'}Expand all tabs{/ts}"{literal};
-        $('.crm-form-block details[open]').prop('open', function(i, val) {return !val;});
+        $('.crm-form-block details').prop('open', false);
         $(this).attr('href', '#expand');
       }
       $(this).html(message);
