@@ -161,7 +161,7 @@
       if( $(this).attr('href') == '#expand') {
         var message = {/literal}"{ts escape='js'}Collapse all tabs{/ts}"{literal};
         $(this).attr('href', '#collapse');
-        $('.crm-form-block details:not([open])').prop('open', function(i, val) {return !val;});
+        $('.crm-form-block details').prop('open', true);
       }
       else {
         var message = {/literal}"{ts escape='js'}Expand all tabs{/ts}"{literal};
