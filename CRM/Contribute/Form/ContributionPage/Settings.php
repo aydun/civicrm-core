@@ -22,6 +22,18 @@ class CRM_Contribute_Form_ContributionPage_Settings extends CRM_Contribute_Form_
   public function preProcess() {
     parent::preProcess();
     $this->setSelectedChild('settings');
+
+    // Must set entityID for defaults to load via AJAX.
+    $this->assign('entityID', $this->_id);
+    $this->assign('financialTypeId', $this->_values['financial_type_id'] ?? '');
+
+    if ($this->isSubmitted()) {
+      // The custom data fields are added to the form by an ajax form.
+      // However, if they are not present in the element index they will
+      // not be available from `$this->getSubmittedValue()` in post process.
+      // We do not have to set defaults or otherwise render - just add to the element index.
+      $this->addCustomDataFieldsToForm('ContributionPage');
+    }
   }
 
   /**

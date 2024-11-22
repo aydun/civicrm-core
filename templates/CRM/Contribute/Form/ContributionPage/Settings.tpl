@@ -127,12 +127,21 @@
           {elseif $config->userFramework EQ 'Joomla'}
               {ts 1=$title}When your page is active, create front-end links to the contribution page using the Menu Manager. Select <strong>Administer CiviCRM &raquo; CiviContribute &raquo; Manage Contribution Pages</strong> and select <strong>%1</strong> for the contribution page.{/ts}
           {/if}
-  </td>
-  </tr>
-  {/if}
-       </table>
-   <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</div>
+        </td>
+      </tr>
+    {/if}
+  </table>
+  {include file="CRM/common/customDataBlock.tpl" customDataType='ContributionPage' customDataSubType=$financialTypeId cid=''}
+  <div class="crm-submit-buttons">{include file="CRM/common/formButtons.tpl" location="bottom"}</div>
 </div>
+
+<script type="text/javascript">
+  CRM.$(function($) {
+    $('#financial_type_id').change( function() {
+      CRM.buildCustomData('ContributionPage', $('#financial_type_id').val(), false, false, false, false, false, false);
+    });
+  });
+</script>
 
 {include file="CRM/common/showHideByFieldValue.tpl"
     trigger_field_id    ="is_organization"
