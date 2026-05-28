@@ -885,7 +885,7 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
         // The concept of contributeMode is deprecated - but still needs removal from the message templates.
         $this->set('contributeMode', 'notify');
       }
-      if (empty($this->_values['event']['is_confirm_enabled']) && empty($params['additional_participants'])) {
+      if ($this->isSkipConfirmPage()) {
         $this->skipToThankYouPage();
       }
     }
@@ -1022,7 +1022,21 @@ class CRM_Event_Form_Registration_Register extends CRM_Event_Form_Registration {
       // Value set by javascript on the form.
       return TRUE;
     }
+    if ($this->getEventValue('is_pay_later') && Civi::settings()->get('allow_price_selection_during_approval_registration')) {
+      // For pay_later events, do not suppress payment (if enabled in settings)
+      return FALSE;
+    }
     return $this->isEventFull() || $this->_requireApproval;
+  }
+
+  /**
+   * @return bool
+   * @throws \CRM_Core_Exception
+   */
+  public function isSkipConfirmPage(): bool {
+    return !$this->getEventValue('is_confirm_enabled')
+      && !$this->getSubmittedValue('additional_participants')
+      && !$this->isShowPaymentOnConfirm();
   }
 
 }

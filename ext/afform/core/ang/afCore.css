@@ -79,6 +79,7 @@ details.af-container.af-layout-inline > *:not(summary) {
   box-shadow: var(--crm-form-block-box-shadow, 1px 2px 8px 1px rgba(0, 0, 0, 0.3));
   position: relative;
   padding: var(--crm-form-block-padding, 5px);
+  padding-top: 50px !important; /* vs next line */
 }
 #bootstrap-theme .af-container-style-pane > .af-title {
   background-color: var(--crm-form-block-header-color, #70716b);
@@ -92,36 +93,6 @@ details.af-container.af-layout-inline > *:not(summary) {
   margin-top: 0;
 }
 
-/* Admin edit links */
-#bootstrap-theme .afform-directive:has(> .af-admin-edit-form-link) .crm-search-display {
-  padding-top: 0.5rem;
-}
-#bootstrap-theme .afform-directive .af-admin-edit-form-link {
-  position: absolute;
-  right: 0;
-  top: 0;
-}
-#bootstrap-theme .af-admin-edit-form-link > button {
-  background: transparent;
-  color: var(--crm-text-color, black);
-  border-radius: 2rem;
-  height: inherit;
-  padding: 0 !important;
-  border: 0;
-  opacity: 0.6;
-}
-#bootstrap-theme .af-admin-edit-form-link.open button,
-#bootstrap-theme .af-admin-edit-form-link button:hover,
-#bootstrap-theme .af-admin-edit-form-link button:focus {
-  background: transparent;
-  color: var(--crm-text-color, black);
-  opacity: 1;
-  box-shadow: none !important; /* vs dropdown-toggle */
-}
-#bootstrap-theme .af-admin-edit-form-link > button .crm-i {
-  padding: 0;
-  border: 0;
-}
 /* Fieldset */
 
 fieldset.af-container.af-layout-inline {

@@ -32,29 +32,39 @@
         // Displays created prior to 5.43 may not have this property
         ctrl.display.settings.classes = ctrl.display.settings.classes || [];
         // Table can be draggable if the main entity is a SortableEntity.
-        ctrl.sortableEntity = _.includes(searchMeta.getEntity(ctrl.apiEntity).type, 'SortableEntity');
-        ctrl.hierarchicalEntity = _.includes(searchMeta.getEntity(ctrl.apiEntity).type, 'HierarchicalEntity');
+        ctrl.sortableEntity = searchMeta.getEntity(ctrl.apiEntity).type?.includes('SortableEntity');
+        ctrl.hierarchicalEntity = searchMeta.getEntity(ctrl.apiEntity).type?.includes('HierarchicalEntity');
 
-        // set columnMode if unset
-        if (!ctrl.display.settings.columnMode) {
-          // if we already have columns defined, this is loading a display
-          // created before columnMode => so use `custom` to preserve existing
-          // behaviour
+        if (ctrl.display.settings.columnMode) {
+          // calling the setter seems redundant, but will run initColumns if needed
+          this.setColumnMode(ctrl.display.settings.columnMode);
+        }
+        else {
+          // determine the column mode to use:
+          // - for new displays is the default is `auto`
+          // - EXCEPT if we already have columns defined, this is reloading a display
+          // created before columnMode existed => use `custom` to preserve
+          // existing behaviour
           if (ctrl.display.settings.columns) {
-            ctrl.display.settings.columnMode = 'custom';
+            this.setColumnMode('custom');
           }
-          // otherwise the default for new displays is `auto`
           else {
-            ctrl.display.settings.columnMode = 'auto';
+            this.setColumnMode('auto');
           }
         }
       };
 
       this.setColumnMode = (value) => {
-        // if switching from auto columns and no columns already exist then
-        // initialise with all the columns to start
-        if (value !== 'auto' && !(this.display.settings.columns && this.display.settings.columns.length)) {
+        if (value === 'auto') {
+          delete this.display.settings.columns;
+        }
+        // if not using auto columns we need to run initColumns to initialise defaults
+        // and populate or validate this.settings.columns
+        else {
           this.parent.initColumns({label: true, sortable: true});
+          if (this.display.settings.tally) {
+            this.setTallyDefaults();
+          }
         }
         this.display.settings.columnMode = value;
       };
@@ -89,26 +99,28 @@
         }
       };
 
-      this.toggleTally = function() {
-        if (ctrl.display.settings.tally) {
-          delete ctrl.display.settings.tally;
-          ctrl.display.settings.columns.forEach((col) => delete col.tally);
+      this.toggleTally = () => {
+        if (this.display.settings.tally) {
+          delete this.display.settings.tally;
+          this.display.settings.columns.forEach((col) => delete col.tally);
         } else {
-          ctrl.display.settings.tally = {label: ts('Total')};
-          ctrl.display.settings.columns.forEach(function(col) {
-            if (col.type === 'field') {
-              col.tally = {
-                fn: searchMeta.getDefaultAggregateFn(searchMeta.parseExpr(ctrl.parent.getExprFromSelect(col.key)), ctrl.apiParams)
-              };
-            }
-          });
+          this.display.settings.tally = {label: ts('Total')};
+          this.setTallyDefaults();
         }
       };
 
-      this.getTallyFunctions = function() {
-        const allowedFunctions = _.filter(CRM.crmSearchAdmin.functions, function(fn) {
-          return fn.category === 'aggregate' && fn.params.length;
+      this.setTallyDefaults = () => {
+        this.display.settings.columns?.forEach((col) => {
+          if (col.type === 'field') {
+            col.tally = {
+              fn: searchMeta.getDefaultAggregateFn(searchMeta.parseExpr(this.parent.getExprFromSelect(col.key)), this.apiParams)
+            };
+          }
         });
+      };
+
+      this.getTallyFunctions = function() {
+        const allowedFunctions = CRM.crmSearchAdmin.functions.filter((fn) => fn.category === 'aggregate' && fn.params.length);
         return {results: formatForSelect2(allowedFunctions, 'name', 'title', ['description'])};
       };
 

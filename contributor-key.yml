@@ -80,6 +80,8 @@
 - name        : Alex Lee
   organization: GMCVO Databases
 
+- github      : alexandreSymbiotic
+
 - github      : alexmarketaccess
   name        : Alex Block
 
@@ -176,6 +178,10 @@
 - github      : artem3
   name        : Artem Goncharenko
 
+- github      : ArthegaAsdweri
+  name        : Daniel Hahn
+  organization: SYSTOPIA
+
 - github      : arthuralmeidap
   name        : Arthur Almeida
   organization: Neuwald Tecnologia da Informação
@@ -260,6 +266,9 @@
   name        : Bradley Taylor
   organization: BrightMinded Ltd
 
+- github      : brendt
+  name        : Brent Roose
+
 - name        : Brian McFee
 
 - github      : breheret
@@ -272,11 +281,7 @@
   organization: Non Profit Tech Advisor
 
 - github      : briennek
-  organization: Civil Justice, Inc.
   name        : Brienne K.
-
-- github      : briennekordis
-  name        : Brienne Kordis
   organization: Megaphone Technology Consulting
 
 - github      : brucew2013
@@ -296,6 +301,10 @@
 - github      : cdhassell
 
 - name        : Cath O'Connell
+
+- github      : celinenicolas
+  name        : Celine Nicolas
+  organization: JMA Consulting
 
 - github      : chagrawil
   name        : Charlie Wilder
@@ -377,6 +386,9 @@
 - github      : CsarRamos
   name        : César Ramos
   organization: iXiam
+
+- github      : cwerstuik
+  name        : Curtis Werstuik
 
 - github      : chrisfromredfin
   name        : Chris Wells
@@ -557,7 +569,7 @@
 
 - github      : elisseck
   name        : Eli Lisseck
-  organization: AGH Strategies
+  organization: Giant Rabbit
 
 - github      : elinw
 
@@ -1849,6 +1861,10 @@
 - github      : vingle
   name        : Nicol Wistreich
 
+- github      : volkjohn
+  name        : John Volk
+  organization: Youth Apostles Institute
+
 - github      : waddyvic
   name        : Victor Huang
 
@@ -1881,7 +1897,7 @@
 
 - github      : wintermoor
   name        : Torben Bertram
-  organization: ECOPLAN
+  organization: Civiservice.de GmbH
 
 - github      : wmortada
   name        : William Mortada
@@ -1986,3 +2002,11 @@
 
 - github      : MundMBo
   name        : Marvin Müller
+
+- github      : PassionateBytes
+  name        : Paul Bütof
+  organization: Passionate Bytes Solutions
+  
+- github      : kernie
+  name        : Maarten Becker
+  organization: Ingenieurbüro Dr. Maarten Becker

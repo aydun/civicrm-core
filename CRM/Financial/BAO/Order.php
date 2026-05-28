@@ -317,7 +317,7 @@ class CRM_Financial_BAO_Order {
   /**
    * Add a line item to an entity.
    *
-   * The v3 api supports more than on line item being stored against a given
+   * The v3 api supports more than one line item being stored against a given
    * set of entity parameters. There is some doubt as to whether this is a
    * good thing that should be supported in v4 or something that 'seemed
    * like a good idea at the time' - but this allows the lines to be added from the
@@ -578,7 +578,8 @@ class CRM_Financial_BAO_Order {
    *
    */
   protected function setPriceSetIDByEntity(string $entity, int $id): void {
-    $this->priceSetID = CRM_Price_BAO_PriceSet::getFor('civicrm_' . $entity, $id);
+    $tableName = CRM_Core_DAO_AllCoreTables::getTableForEntityName(CRM_Core_DAO_AllCoreTables::convertEntityNameToCamel($entity));
+    $this->priceSetID = CRM_Price_BAO_PriceSet::getFor($tableName, $id);
   }
 
   /**
@@ -1320,7 +1321,9 @@ class CRM_Financial_BAO_Order {
    */
   public function getLineItemEntity($index):string {
     // @todo - ensure entity_table is set in setLineItem, go back to enotices here.
-    return str_replace('civicrm_', '', ($this->lineItems[$index]['entity_table'] ?? 'contribution'));
+    return \CRM_Core_DAO_AllCoreTables::convertEntityNameToLower(
+      \CRM_Core_DAO_AllCoreTables::getEntityNameForTable($this->lineItems[$index]['entity_table'] ?? 'civicrm_contribution')
+    );
   }
 
   /**
@@ -1448,6 +1451,26 @@ class CRM_Financial_BAO_Order {
   }
 
   /**
+   * Get the constructed line items formatted for the v3 Order api.
+   *
+   * @return array
+   *
+   * @internal core tested code only.
+   *
+   * @throws \CRM_Core_Exception
+   */
+  public function getLineItemsForV4OrderApi(): array {
+    $lineItems = [];
+    foreach ($this->getLineItems() as $key => $line) {
+      foreach ($this->entityParameters[$key] as $fieldName => $entityParameter) {
+        $line['entity_id.' . $fieldName] = $entityParameter;
+      }
+      $lineItems[] = $line;
+    }
+    return $lineItems;
+  }
+
+  /**
    * @return array
    * @throws \CRM_Core_Exception
    * @throws \Civi\API\Exception\UnauthorizedException
@@ -1569,7 +1592,7 @@ class CRM_Financial_BAO_Order {
 
     $contributionValues['total_amount'] = $this->getTotalAmount();
     $contributionValues['tax_amount'] = $this->getTotalTaxAmount();
-    $contributionValues['amount_level'] = $this->getAmountLevel();
+    $contributionValues['amount_level'] = $contributionValues['amount_level'] ?? $this->getAmountLevel();
     $contributionValues['contribution_status_id:name'] = 'Pending';
     $contributionValues['line_item'] = [$this->getLineItems()];
     if ($this->getExistingContributionRecurID()) {
@@ -1636,8 +1659,11 @@ class CRM_Financial_BAO_Order {
     if (empty($entityValues['id'])) {
       // Not an update, include any relevant values (e.g. contact_id) from the contribution
       // entity values if not present already in EntityFields.
-      $fields = (array) civicrm_api4($entity, 'getfields')->indexBy('name');
+      $fields = (array) civicrm_api4($entity, 'getfields', ['checkPermissions' => FALSE])->indexBy('name');
       $carryOverFields = array_intersect_key($this->contributionValues, $fields);
+      if ($entity === 'Participant') {
+        $carryOverFields += array_filter(['fee_amount' => $lineItem['unit_price'], 'fee_level' => $lineItem['label']]);
+      }
       $entityValues += $carryOverFields;
 
       if ($entity === 'Membership') {
@@ -1674,14 +1700,7 @@ class CRM_Financial_BAO_Order {
         if (empty($statusIDKey) || empty($entityValues[$statusIDKey])) {
           // For the Membership entity, we didn't pass in a value for "status" so we are going to calculate membership status
           //   from membership dates and membership type.
-          $entityValues['status_id'] = CRM_Member_BAO_MembershipStatus::getMembershipStatusByDate(
-            $entityValues['start_date'] ?? NULL,
-            $entityValues['end_date'] ?? NULL,
-            $entityValues['join_date'] ?? NULL,
-            $this->contributionValues['receive_date'],
-            TRUE,
-            $entityValues['membership_type_id']
-          )['id'];
+          $entityValues['status_id:name'] = 'Pending';
         }
       }
     }

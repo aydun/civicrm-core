@@ -659,9 +659,9 @@ class ManagedEntityTest extends TestCase implements HeadlessInterface, Transacti
     ];
     $managedRecords = [];
     \CRM_Utils_Hook::managed($managedRecords, ['unit.test.fake.ext']);
-    $result = \CRM_Utils_Array::findAll($managedRecords, ['module' => 'unit.test.fake.ext', 'name' => 'Navigation_Test_Domains']);
+    $result = \CRM_Utils_Array::filter($managedRecords, ['module' => 'unit.test.fake.ext', 'name' => 'Navigation_Test_Domains']);
     $this->assertCount(1, $result);
-    $this->assertSame(['name'], $result[0]['params']['match']);
+    $this->assertSame(['name'], reset($result)['params']['match']);
 
     Domain::create(FALSE)
       ->addValue('name', 'Another domain')
@@ -678,15 +678,15 @@ class ManagedEntityTest extends TestCase implements HeadlessInterface, Transacti
     \CRM_Utils_Hook::managed($managedRecords, ['unit.test.fake.ext']);
 
     // Base entity should not have been renamed
-    $result = \CRM_Utils_Array::findAll($managedRecords, ['module' => 'unit.test.fake.ext', 'name' => 'Navigation_Test_Domains']);
+    $result = \CRM_Utils_Array::filter($managedRecords, ['module' => 'unit.test.fake.ext', 'name' => 'Navigation_Test_Domains']);
     $this->assertCount(1, $result);
-    $this->assertSame(['name', 'domain_id'], $result[0]['params']['match']);
+    $this->assertSame(['name', 'domain_id'], reset($result)['params']['match']);
 
     // New item should have been inserted for extra domains
     foreach (array_slice($allDomains->column('id'), 1) as $domain) {
-      $result = \CRM_Utils_Array::findAll($managedRecords, ['module' => 'unit.test.fake.ext', 'name' => 'Navigation_Test_Domains_' . $domain]);
+      $result = \CRM_Utils_Array::filter($managedRecords, ['module' => 'unit.test.fake.ext', 'name' => 'Navigation_Test_Domains_' . $domain]);
       $this->assertCount(1, $result);
-      $this->assertSame(['name', 'domain_id'], $result[0]['params']['match']);
+      $this->assertSame(['name', 'domain_id'], reset($result)['params']['match']);
     }
 
     // Now we test Domain 1 NOT multisite enabled (ie. "global")
@@ -697,15 +697,15 @@ class ManagedEntityTest extends TestCase implements HeadlessInterface, Transacti
     \CRM_Utils_Hook::managed($managedRecords, ['unit.test.fake.ext']);
 
     // Base entity should not have been renamed
-    $result = \CRM_Utils_Array::findAll($managedRecords, ['module' => 'unit.test.fake.ext', 'name' => 'Navigation_Test_Domains']);
+    $result = \CRM_Utils_Array::filter($managedRecords, ['module' => 'unit.test.fake.ext', 'name' => 'Navigation_Test_Domains']);
     $this->assertCount(1, $result);
-    $this->assertSame(['name', 'domain_id'], $result[0]['params']['match']);
+    $this->assertSame(['name', 'domain_id'], reset($result)['params']['match']);
 
     // New item should have been inserted for extra domains
     foreach (array_slice($allDomains->column('id'), 1) as $domain) {
-      $result = \CRM_Utils_Array::findAll($managedRecords, ['module' => 'unit.test.fake.ext', 'name' => 'Navigation_Test_Domains_' . $domain]);
+      $result = \CRM_Utils_Array::filter($managedRecords, ['module' => 'unit.test.fake.ext', 'name' => 'Navigation_Test_Domains_' . $domain]);
       $this->assertCount(1, $result);
-      $this->assertSame(['name', 'domain_id'], $result[0]['params']['match']);
+      $this->assertSame(['name', 'domain_id'], reset($result)['params']['match']);
     }
 
   }
@@ -837,6 +837,92 @@ class ManagedEntityTest extends TestCase implements HeadlessInterface, Transacti
       ->execute();
 
     $this->assertEquals(0, count($managedRecords));
+  }
+
+  /**
+   * Test migrating a managed entity from one module to another.
+   *
+   * Scenario:
+   *  - Module A declares a managed entity and reconcile creates it.
+   *  - Later, Module B declares the same managed entity, with `replaces` => [module => Module A].
+   *  - Reconcile should "move" the managed record (civicrm_managed.module) without creating a new entity.
+   *
+   * @throws \CRM_Core_Exception
+   */
+  public function testMoveManagedEntityToAnotherModule(): void {
+    $moduleA = 'unit.test.fake.extA';
+    $moduleB = 'unit.test.fake.extB';
+    $managedName = 'testMoveManagedEntity';
+    $searchName = 'TestMoveManagedSavedSearch';
+
+    $declarationA = [
+      'module' => $moduleA,
+      'name' => $managedName,
+      'entity' => 'SavedSearch',
+      'cleanup' => 'always',
+      'update' => 'unmodified',
+      'params' => [
+        'version' => 4,
+        'values' => [
+          'name' => $searchName,
+          'label' => 'Move Me',
+        ],
+        'match' => ['name'],
+      ],
+    ];
+
+    // Step 1: reconcile with module A providing the declaration.
+    $this->_managedEntities = [$declarationA];
+
+    $allModules = [
+      new CRM_Core_Module($moduleA, TRUE),
+      new CRM_Core_Module($moduleB, TRUE),
+    ];
+    $modulesToReconcile = [$moduleA, $moduleB];
+    (new CRM_Core_ManagedEntities($allModules))->reconcile($modulesToReconcile);
+
+    $search = $this->getTestRecord('SavedSearch', ['name' => $searchName], ['id', 'has_base', 'base_module']);
+    $this->assertTrue($search['has_base']);
+    $this->assertEquals($moduleA, $search['base_module']);
+    $entityId = $search['id'];
+
+    $managedA = Managed::get(FALSE)
+      ->addWhere('module', '=', $moduleA)
+      ->addWhere('name', '=', $managedName)
+      ->addWhere('entity_type', '=', 'SavedSearch')
+      ->execute();
+    $this->assertCount(1, $managedA);
+    $this->assertEquals($entityId, $managedA[0]['entity_id']);
+
+    // Step 2: "move" the declaration to module B
+    $declarationB = $declarationA;
+    $declarationB['module'] = $moduleB;
+    $declarationB['replaces'] = [
+      'module' => $moduleA,
+    ];
+    $declarationB['params']['values']['description'] = 'Now owned by module B';
+
+    $this->_managedEntities = [$declarationB];
+    (new CRM_Core_ManagedEntities($allModules))->reconcile($modulesToReconcile);
+
+    // Confirm: still exactly one SavedSearch with the same name & id.
+    $searches = SavedSearch::get(FALSE)
+      ->addWhere('name', '=', $searchName)
+      ->addSelect('id', 'has_base', 'base_module')
+      ->execute();
+    $this->assertCount(1, $searches);
+    $this->assertEquals($entityId, $searches[0]['id']);
+    $this->assertTrue($searches[0]['has_base']);
+    $this->assertEquals($moduleB, $searches[0]['base_module']);
+
+    // Confirm: managed record moved to module B.
+    $managedB = Managed::get(FALSE)
+      ->addWhere('name', '=', $managedName)
+      ->addWhere('entity_type', '=', 'SavedSearch')
+      ->execute();
+    $this->assertCount(1, $managedB);
+    $this->assertEquals($entityId, $managedB[0]['entity_id']);
+    $this->assertEquals($moduleB, $managedB[0]['module']);
   }
 
   /**

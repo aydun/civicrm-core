@@ -10,6 +10,7 @@
  */
 
 use Civi\Api4\EntityFinancialTrxn;
+use Civi\Api4\FinancialItem;
 use Civi\Api4\PaymentProcessor;
 
 /**
@@ -87,7 +88,7 @@ class CRM_Contribute_BAO_FinancialProcessor {
   }
 
   private function isPendingTransaction(): bool {
-    return $this->getUpdatedContributionStatus() === 'Pending';
+    return in_array($this->getUpdatedContributionStatus(), ['Pending', 'In Progress']);
   }
 
   private function isCompletedTransaction(): bool {
@@ -181,22 +182,23 @@ class CRM_Contribute_BAO_FinancialProcessor {
         'Accounts Receivable Account is'
       );
     }
+    $accountID = NULL;
     if (!empty($params['payment_processor'])) {
-      return CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($params['payment_processor'], NULL, 'civicrm_payment_processor');
+      $accountID = CRM_Contribute_PseudoConstant::getRelationalFinancialAccount($params['payment_processor'], NULL, 'civicrm_payment_processor');
     }
     // Probably here we should check $this->updatedContribution instead of params
     // and then we would not need the next if.
-    if (!empty($params['payment_instrument_id'])) {
-      return CRM_Financial_BAO_EntityFinancialAccount::getInstrumentFinancialAccount($params['payment_instrument_id']);
+    if (!$accountID && !empty($params['payment_instrument_id'])) {
+      $accountID = CRM_Financial_BAO_EntityFinancialAccount::getInstrumentFinancialAccount($params['payment_instrument_id']);
     }
     // Probably updatedContribution makes more sense - per previous comment.
     // dev/financial#160 - If this is a contribution update, also check for an existing payment_instrument_id.
-    if ($this->getOriginalPaymentInstrumentID()) {
-      return CRM_Financial_BAO_EntityFinancialAccount::getInstrumentFinancialAccount((int) $params['prevContribution']->payment_instrument_id);
+    elseif (!$accountID && $this->getOriginalPaymentInstrumentID()) {
+      $accountID = CRM_Financial_BAO_EntityFinancialAccount::getInstrumentFinancialAccount((int) $params['prevContribution']->payment_instrument_id);
     }
     $relationTypeId = key(CRM_Core_PseudoConstant::accountOptionValues('financial_account_type', NULL, " AND v.name LIKE 'Asset' "));
     $queryParams = [1 => [$relationTypeId, 'Integer']];
-    return CRM_Core_DAO::singleValueQuery("SELECT id FROM civicrm_financial_account WHERE is_default = 1 AND financial_account_type_id = %1", $queryParams);
+    return $accountID ?: CRM_Core_DAO::singleValueQuery("SELECT id FROM civicrm_financial_account WHERE is_default = 1 AND financial_account_type_id = %1", $queryParams);
   }
 
   /**
@@ -726,30 +728,35 @@ class CRM_Contribute_BAO_FinancialProcessor {
       // This is an update so original currency if none passed in.
       $params['trxnParams']['currency'] = $params['currency'] ?? $params['prevContribution']->currency;
 
-      $transactionIDs[] = $this->recordAlwaysAccountsReceivable($params['trxnParams'], $params);
+      $financialTrxnIDs[] = $this->recordAlwaysAccountsReceivable($params['trxnParams'], $params);
       $trxn = CRM_Core_BAO_FinancialTrxn::create($params['trxnParams']);
       // @todo we should stop passing $params by reference - splitting this out would be a step towards that.
-      $params['entity_id'] = $transactionIDs[] = $trxn->id;
+      $params['entity_id'] = $financialTrxnIDs[] = $trxn->id;
 
-      $sql = "SELECT id, amount FROM civicrm_financial_item WHERE entity_id = %1 and entity_table = 'civicrm_line_item'";
-
-      $entityParams = [
+      $entityFinancialTrxnRecord = [
         'entity_table' => 'civicrm_financial_item',
       ];
       foreach ($params['line_item'] as $fieldId => $fields) {
         foreach ($fields as $fieldValueId => $lineItemDetails) {
           $this->updateFinancialItemForLineItemToPaid($lineItemDetails['id']);
-          $fparams = [
-            1 => [$lineItemDetails['id'], 'Integer'],
-          ];
-          $financialItem = CRM_Core_DAO::executeQuery($sql, $fparams);
-          while ($financialItem->fetch()) {
-            $entityParams['entity_id'] = $financialItem->id;
-            $entityParams['amount'] = $financialItem->amount;
-            foreach ($transactionIDs as $tID) {
-              $entityParams['financial_trxn_id'] = $tID;
-              CRM_Financial_BAO_FinancialItem::createEntityTrxn($entityParams);
+          $financialItems = FinancialItem::get(FALSE)
+            ->addSelect('id', 'amount')
+            ->addWhere('entity_id', '=', $lineItemDetails['id'])
+            ->addWhere('entity_table', '=', 'civicrm_line_item')
+            ->execute();
+          if ($financialItems->count() > 0) {
+            $entityFinancialTrxnRecordsToCreate = [];
+            foreach ($financialItems as $financialItem) {
+              $entityFinancialTrxnRecord['entity_id'] = $financialItem['id'];
+              $entityFinancialTrxnRecord['amount'] = $financialItem['amount'];
+              foreach ($financialTrxnIDs as $financialTrxnID) {
+                $entityFinancialTrxnRecord['financial_trxn_id'] = $financialTrxnID;
+                $entityFinancialTrxnRecordsToCreate[] = $entityFinancialTrxnRecord;
+              }
             }
+            EntityFinancialTrxn::save(FALSE)
+              ->setRecords($entityFinancialTrxnRecordsToCreate)
+              ->execute();
           }
         }
       }
@@ -1092,6 +1099,7 @@ class CRM_Contribute_BAO_FinancialProcessor {
           $line['financial_type_id'] = CRM_Core_DAO::getFieldValue('CRM_Price_DAO_PriceFieldValue', $line['price_field_value_id'], 'financial_type_id');
         }
         $createdLineItem = CRM_Price_BAO_LineItem::create($line);
+
         if (!$this->isUpdate()) {
           $financialItem = CRM_Financial_BAO_FinancialItem::add($createdLineItem, $this->getUpdatedContribution());
           $line['financial_item_id'] = $financialItem->id;
